@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Runtime queries go through Neon's pooled endpoint (fast, many short conns).
+  url       = env("DATABASE_URL")
+  // Migrations/introspection need a DIRECT (non-pooled) connection — the pooler
+  // (PgBouncer, transaction mode) can't hold the advisory locks / session state
+  // Prisma migrate requires. This is the Neon endpoint WITHOUT `-pooler`.
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  teacher
+  student
+}
+
+model Profile {
+  id            String        @id @default(uuid())
+  // Clerk is the identity provider. This is the Clerk user id (e.g. "user_xxx")
+  // and the link between a Clerk account and this app's data. All existing
+  // relations still hang off the internal `id`, so nothing else changed.
+  clerkUserId   String        @unique
+  name          String
+  email         String        @unique
+  role          Role
+  classesTaught Class[]       @relation("TeacherClasses")
+  rosterLinks   RosterEntry[] @relation("StudentRosterLinks")
+  createdAt     DateTime      @default(now())
+}
+
+model Class {
+  id        String        @id @default(uuid())
+  name      String
+  joinCode  String        @unique
+  teacherId String
+  teacher   Profile       @relation("TeacherClasses", fields: [teacherId], references: [id], onDelete: Cascade)
+  roster    RosterEntry[]
+  sessions  Session[]
+  createdAt DateTime      @default(now())
+}
+
+model RosterEntry {
+  id         String       @id @default(uuid())
+  classId    String
+  class      Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name       String
+  rollNo     String
+  studentId  String?
+  student    Profile?     @relation("StudentRosterLinks", fields: [studentId], references: [id], onDelete: SetNull)
+  attendance Attendance[]
+  createdAt  DateTime     @default(now())
+
+  @@unique([classId, rollNo])
+}
+
+model Session {
+  id            String       @id @default(uuid())
+  classId       String
+  class         Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  token         String
+  lastRotatedAt DateTime     @default(now())
+  startedAt     DateTime     @default(now())
+  expiresAt     DateTime
+  isActive      Boolean      @default(true)
+  attendance    Attendance[]
+}
+
+model Attendance {
+  id            String      @id @default(uuid())
+  sessionId     String
+  rosterEntryId String
+  session       Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rosterEntry   RosterEntry @relation(fields: [rosterEntryId], references: [id], onDelete: Cascade)
+  markedAt      DateTime    @default(now())
+
+  @@unique([sessionId, rosterEntryId])
+}

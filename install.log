@@ -1,0 +1,14 @@
+Unable to fetch compatibility data from React Native Directory. Skipping check.
+(node:23) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+TypeError: fetch failed
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:14976:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async fetchWithCredentials (/sessions/wonderful-tender-brahmagupta/mnt/qr-attendence/node_modules/expo/node_modules/@expo/cli/build/src/api/rest/client.js:108:30)
+    at async cachedFetch (/sessions/wonderful-tender-brahmagupta/mnt/qr-attendence/node_modules/expo/node_modules/@expo/cli/build/src/api/rest/cache/wrapFetchWithCache.js:35:30)
+    at async getNativeModuleVersionsAsync (/sessions/wonderful-tender-brahmagupta/mnt/qr-attendence/node_modules/expo/node_modules/@expo/cli/build/src/api/getNativeModuleVersions.js:19:22)
+    at async getVersionedNativeModulesAsync (/sessions/wonderful-tender-brahmagupta/mnt/qr-attendence/node_modules/expo/node_modules/@expo/cli/build/src/start/doctor/dependencies/bundledNativeModules.js:87:20)
+    at async getCombinedKnownVersionsAsync (/sessions/wonderful-tender-brahmagupta/mnt/qr-attendence/node_modules/expo/node_modules/@expo/cli/build/src/start/doctor/dependencies/getVersionedPackages.js:68:47)
+    at async getVersionedPackagesAsync (/sessions/wonderful-tender-brahmagupta/mnt/qr-attendence/node_modules/expo/node_modules/@expo/cli/build/src/start/doctor/dependencies/getVersionedPackages.js:109:28)
+    at async installPackagesAsync (/sessions/wonderful-tender-brahmagupta/mnt/qr-attendence/node_modules/expo/node_modules/@expo/cli/build/src/install/installAsync.js:151:24)
