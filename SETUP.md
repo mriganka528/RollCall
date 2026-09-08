@@ -124,18 +124,25 @@ you like.
 ```dotenv
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxx
 
-# OPTIONAL — the app auto-detects the backend from the Metro host, so you
-# usually don't need this. Set it only to force a specific URL:
-# EXPO_PUBLIC_API_URL=http://192.168.1.20:4000
+# The deployed backend URL (Vercel). Used as the default fallback when
+# EXPO_PUBLIC_API_URL is unset and there's no Metro host to auto-detect.
+EXPO_PUBLIC_DEPLOYED_API_URL=https://roll-call-self.vercel.app
+
+# Points the app at the DEPLOYED backend so API calls work from any device, any
+# time. Comment it out to develop against a LOCAL server (the app then
+# auto-detects the Metro host), or set your LAN IP to force a specific URL:
+EXPO_PUBLIC_API_URL=https://roll-call-self.vercel.app
 # EXPO_PUBLIC_API_PORT=4000        # override the default port (4000)
 ```
 
-- **`EXPO_PUBLIC_API_URL` is now optional.** On startup the app derives the API
-  host from Expo's Metro dev-server host (your dev machine's IP) and uses port
-  `4000`, so a physical phone in Expo Go reaches your backend with **no config**.
-  Check the `[api] base URL: …` log line at launch to see what it resolved.
-  Set `EXPO_PUBLIC_API_URL` only to override (e.g. a deployed backend), and
-  `EXPO_PUBLIC_API_PORT` only if your server isn't on `4000`.
+- **`EXPO_PUBLIC_API_URL` points at the deployed backend.** It's set to the
+  Vercel URL (`https://roll-call-self.vercel.app`), which always wins over
+  auto-detect, so every API call reaches the live server — on a physical phone,
+  an emulator, or a production build. Check the `[api] base URL: …` log line at
+  launch to confirm. To develop against a **local** server instead, comment the
+  line out (the app then auto-detects Expo's Metro dev-server host and uses port
+  `4000`) or set your LAN IP; use `EXPO_PUBLIC_API_PORT` only if the local server
+  isn't on `4000`.
 - `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` is the same publishable key as the
   server's; it's safe to ship in the client.
 

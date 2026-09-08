@@ -371,6 +371,38 @@ router.delete(
   }
 );
 
+// POST /classes/:id/roster/bulk-delete { ids: string[] } — remove many roster
+// entries at once (select-multiple / remove-all in the app). A single
+// deleteMany scoped to BOTH the id list AND this class is atomic and safe: ids
+// that don't belong to this class simply don't match, so a stray/foreign id can
+// never delete another teacher's data. Ownership is validated first. The
+// schema's onDelete cascade (RosterEntry → Attendance) removes each entry's
+// attendance in the same operation, exactly like the single-entry delete.
+// Uses POST (not DELETE) so the id array travels reliably as a JSON body.
+router.post(
+  '/classes/:id/roster/bulk-delete',
+  requireAuth,
+  requireRole('teacher'),
+  async (req, res) => {
+    const cls = await ownedClass(req.params.id, req.user!.id);
+    if (!cls) return res.status(404).json({ error: 'Class not found' });
+
+    const ids: string[] = Array.isArray(req.body?.ids)
+      ? req.body.ids.filter((x: unknown) => typeof x === 'string')
+      : [];
+    if (ids.length === 0) return res.status(400).json({ error: 'ids (array) is required' });
+
+    const result = await prisma.rosterEntry.deleteMany({
+      where: { id: { in: ids }, classId: cls.id },
+    });
+    // eslint-disable-next-line no-console
+    console.log(
+      `[classes] ROSTER bulk-delete → removed ${result.count} entr${result.count === 1 ? 'y' : 'ies'} from class ${cls.id}`
+    );
+    return res.json({ ok: true, removed: result.count });
+  }
+);
+
 // POST /classes/:id/roster/import (multipart file) — parse only, no DB writes.
 router.post(
   '/classes/:id/roster/import',

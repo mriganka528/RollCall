@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 import { useSignIn } from '@clerk/expo';
@@ -7,10 +7,12 @@ import { GoogleAuthButton } from '../../components/GoogleAuthButton';
 import { useToast } from '../../components/Toast';
 import { haptics } from '../../lib/haptics';
 
-// Pull a human-readable message out of a Clerk error (it nests them under
-// `errors[]`), falling back to a generic line.
+// Pull a human-readable message out of a Clerk error. The signals/future API
+// returns a ClerkError object with `longMessage`/`message`/`code`; older thrown
+// errors nested them under `errors[]`. Handle both so any shape reads cleanly.
 function clerkError(e: any): string {
   return (
+    e?.longMessage ??
     e?.errors?.[0]?.longMessage ??
     e?.errors?.[0]?.message ??
     e?.message ??
@@ -19,43 +21,42 @@ function clerkError(e: any): string {
 }
 
 export default function Login() {
-  const { signIn, setActive, isLoaded } = useSignIn();
+  // @clerk/expo (Core 3) exposes the signals/future API: useSignIn() returns
+  // { signIn, errors, fetchStatus } — there is NO `isLoaded` and NO `setActive`.
+  // `signIn` is always present, so we never gate the button on a "loaded" flag
+  // (doing that with an always-undefined `isLoaded` is what previously left the
+  // button permanently disabled and made email/password login look broken).
+  const { signIn } = useSignIn();
   const toast = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Diagnostic: surface whether Clerk's sign-in resource has initialised. If this
-  // logs `false` and never flips to `true`, Clerk itself isn't loading (check the
-  // publishable key / network / allowed origins) — that's what used to grey out
-  // the button. The button no longer depends on it, but this log makes a stuck
-  // Clerk easy to spot in the console.
-  useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log(`[auth] login — Clerk useSignIn isLoaded: ${isLoaded}`);
-  }, [isLoaded]);
-
   async function onLogin() {
-    if (!isLoaded || !signIn || !setActive) {
-      toast.show('Still connecting to the sign-in service — one moment, then tap again.', 'info');
-      return;
-    }
     if (!email.trim() || !password) {
       toast.show('Enter your email and password.', 'error');
       return;
     }
     setBusy(true);
     try {
-      const res = await signIn.create({ identifier: email.trim(), password });
-      if (res.status === 'complete') {
-        await setActive({ session: res.createdSessionId });
-        haptics.success();
-        toast.show('Welcome back!', 'success');
-        // RootNavigator redirects once the Clerk session + profile resolve.
-      } else {
-        // Password sign-in should complete in one step; anything else is unusual.
-        toast.show('Additional verification needed. Please try again.', 'error');
+      // Future API: submit the password in one call. These methods RESOLVE with
+      // `{ error }` (they don't throw for auth failures), so check `error`
+      // rather than relying on try/catch for a wrong password.
+      const { error } = await signIn.password({ identifier: email.trim(), password });
+      if (error) {
+        toast.show(clerkError(error), 'error');
+        return;
       }
+      // finalize() converts the now-complete sign-in into the active session
+      // (the replacement for the old setActive). RootNavigator then redirects
+      // once the Clerk session + profile resolve.
+      const fin = await signIn.finalize();
+      if (fin.error) {
+        toast.show(clerkError(fin.error), 'error');
+        return;
+      }
+      haptics.success();
+      toast.show('Welcome back!', 'success');
     } catch (e) {
       toast.show(clerkError(e), 'error');
     } finally {
@@ -87,7 +88,14 @@ export default function Login() {
             placeholder="Password"
             secureTextEntry
           />
-          <BauhausButton label={busy ? 'Logging in…' : 'Log In'} onPress={onLogin} disabled={busy} />
+          {/* Enabled as soon as the screen renders; only disabled while a login
+              is in flight (`busy`). Google stays enabled throughout (useSSO
+              awaits Clerk internally), so there's always a working path. */}
+          <BauhausButton
+            label={busy ? 'Logging in…' : 'Log In'}
+            onPress={onLogin}
+            disabled={busy}
+          />
 
           <View style={styles.orRow}>
             <View style={styles.orLine} />

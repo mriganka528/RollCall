@@ -1,0 +1,38 @@
+{
+  "cli": {
+    "version": ">= 5.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmlybS1waWdlb24tOTA4MC5jbGVyay5hY2NvdW50cy5kZXYk",
+        "EXPO_PUBLIC_DEPLOYED_API_URL": "https://roll-call-self.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://roll-call-self.vercel.app"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmlybS1waWdlb24tOTA4MC5jbGVyay5hY2NvdW50cy5kZXYk",
+        "EXPO_PUBLIC_DEPLOYED_API_URL": "https://roll-call-self.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://roll-call-self.vercel.app"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmlybS1waWdlb24tOTA4MC5jbGVyay5hY2NvdW50cy5kZXYk",
+        "EXPO_PUBLIC_DEPLOYED_API_URL": "https://roll-call-self.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://roll-call-self.vercel.app"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

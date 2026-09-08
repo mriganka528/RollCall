@@ -7,9 +7,12 @@ import { GoogleAuthButton } from '../../components/GoogleAuthButton';
 import { useToast } from '../../components/Toast';
 import { haptics } from '../../lib/haptics';
 
-// Pull a human-readable message out of a Clerk error.
+// Pull a human-readable message out of a Clerk error. The signals/future API
+// returns a ClerkError object with `longMessage`/`message`/`code`; older thrown
+// errors nested them under `errors[]`. Handle both.
 function clerkError(e: any): string {
   return (
+    e?.longMessage ??
     e?.errors?.[0]?.longMessage ??
     e?.errors?.[0]?.message ??
     e?.message ??
@@ -18,7 +21,9 @@ function clerkError(e: any): string {
 }
 
 export default function Signup() {
-  const { signUp, setActive, isLoaded } = useSignUp();
+  // Signals/future API (see login.tsx): useSignUp() returns { signUp, errors,
+  // fetchStatus } — no `isLoaded`, no `setActive`. `signUp` is always present.
+  const { signUp } = useSignUp();
   const toast = useToast();
 
   // Two phases in one screen: collect credentials, then verify the emailed code.
@@ -30,10 +35,6 @@ export default function Signup() {
   const [busy, setBusy] = useState(false);
 
   async function onSubmit() {
-    if (!isLoaded || !signUp) {
-      toast.show('Still connecting to the sign-up service — one moment, then tap again.', 'info');
-      return;
-    }
     if (!email.trim()) {
       toast.show('Enter your email.', 'error');
       return;
@@ -48,8 +49,18 @@ export default function Signup() {
     }
     setBusy(true);
     try {
-      await signUp.create({ emailAddress: email.trim(), password });
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      // Future API: create() then send the email verification code. Both resolve
+      // with `{ error }` instead of throwing, so check `error` after each step.
+      const created = await signUp.create({ emailAddress: email.trim(), password });
+      if (created.error) {
+        toast.show(clerkError(created.error), 'error');
+        return;
+      }
+      const sent = await signUp.verifications.sendEmailCode();
+      if (sent.error) {
+        toast.show(clerkError(sent.error), 'error');
+        return;
+      }
       haptics.light();
       setPhase('verify');
       toast.show('We emailed you a 6-digit code.', 'info');
@@ -61,25 +72,26 @@ export default function Signup() {
   }
 
   async function onVerify() {
-    if (!isLoaded || !signUp || !setActive) {
-      toast.show('Still connecting to the sign-up service — one moment, then tap again.', 'info');
-      return;
-    }
     if (!code.trim()) {
       toast.show('Enter the code from your email.', 'error');
       return;
     }
     setBusy(true);
     try {
-      const res = await signUp.attemptEmailAddressVerification({ code: code.trim() });
-      if (res.status === 'complete') {
-        await setActive({ session: res.createdSessionId });
-        haptics.success();
-        toast.show('Email verified!', 'success');
-        // No Profile yet → RootNavigator sends us to the role picker.
-      } else {
-        toast.show('Verification incomplete. Please try again.', 'error');
+      const verified = await signUp.verifications.verifyEmailCode({ code: code.trim() });
+      if (verified.error) {
+        toast.show(clerkError(verified.error), 'error');
+        return;
       }
+      // finalize() activates the session (replaces setActive). With no Profile
+      // yet, RootNavigator then sends the user to the role picker.
+      const fin = await signUp.finalize();
+      if (fin.error) {
+        toast.show(clerkError(fin.error), 'error');
+        return;
+      }
+      haptics.success();
+      toast.show('Email verified!', 'success');
     } catch (e) {
       toast.show(clerkError(e), 'error');
     } finally {
@@ -88,12 +100,12 @@ export default function Signup() {
   }
 
   async function onResend() {
-    if (!isLoaded || !signUp) {
-      toast.show('Still connecting — one moment, then tap Resend again.', 'info');
-      return;
-    }
     try {
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      const { error } = await signUp.verifications.sendEmailCode();
+      if (error) {
+        toast.show(clerkError(error), 'error');
+        return;
+      }
       toast.show('New code sent.', 'info');
     } catch (e) {
       toast.show(clerkError(e), 'error');
@@ -126,6 +138,9 @@ export default function Signup() {
               value={confirm}
               onChangeText={setConfirm}
             />
+            {/* Enabled from first render; only disabled while a request is in
+                flight (`busy`). No premature-tap loop because there's no
+                "loaded" gate to wait on. */}
             <BauhausButton
               label={busy ? 'Creating…' : 'Sign Up'}
               onPress={onSubmit}

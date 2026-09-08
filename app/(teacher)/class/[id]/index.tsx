@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import { BauhausCard, BauhausButton, BauhausHeader, BauhausText, fonts, theme } from '../../../../components/BauhausCard';
 import { useToast } from '../../../../components/Toast';
 import { useConfirm } from '../../../../components/ConfirmDialog';
@@ -14,14 +14,21 @@ export default function ClassDetail() {
   const toast = useToast();
   const confirm = useConfirm();
   const [data, setData] = useState<ClassDetailType | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      setLoadError(null);
       setData(await api.get<ClassDetailType>(`/classes/${id}`));
     } catch (e) {
-      toast.show(e instanceof ApiError ? e.message : 'Could not load class.', 'error');
+      const msg = e instanceof ApiError ? e.message : 'Could not load class.';
+      // Keep the message on screen (with a Retry) instead of only flashing a
+      // toast and dead-ending on "Loading…" — this is the "tapped a class and it
+      // didn't load" case, usually a Vercel cold-start timeout.
+      setLoadError(msg);
+      toast.show(msg, 'error');
     }
   }, [id, toast]);
 
@@ -50,6 +57,24 @@ export default function ClassDetail() {
   // Read-only details for a finished (or ongoing) session (§13).
   function viewDetails(sessionId: string) {
     router.push(`/(teacher)/class/${id}/session-details?sessionId=${sessionId}`);
+  }
+
+  // Share the join code to any app (WhatsApp, SMS, email, …) via the OS share
+  // sheet — which also offers "Copy" on both iOS and Android, so the code is both
+  // shareable and copyable. Uses React Native's built-in Share (no extra deps).
+  async function shareCode() {
+    if (!data) return;
+    haptics.light();
+    try {
+      await Share.share({
+        message:
+          `Join my class “${data.name}” on ROLLCALL.\n\n` +
+          `Join code: ${data.joinCode}\n\n` +
+          `In the ROLLCALL app: Join a class → enter this code and your roll number.`,
+      });
+    } catch {
+      // Sheet dismissed or unavailable — nothing to do.
+    }
   }
 
   // Deleting a class is irreversible and cascades to every session, roster row,
@@ -81,8 +106,15 @@ export default function ClassDetail() {
 
   if (!data) {
     return (
-      <View style={styles.container}>
-        <BauhausText style={styles.muted}>Loading…</BauhausText>
+      <View style={styles.loadingBox}>
+        {loadError ? (
+          <>
+            <BauhausText style={styles.loadErr}>{loadError}</BauhausText>
+            <BauhausButton label="Try again" onPress={load} fullWidth={false} />
+          </>
+        ) : (
+          <BauhausText style={styles.muted}>Loading…</BauhausText>
+        )}
       </View>
     );
   }
@@ -96,6 +128,7 @@ export default function ClassDetail() {
         <BauhausHeader style={styles.code}>{data.joinCode}</BauhausHeader>
         <BauhausText style={styles.heroSub}>{data.studentCount} students</BauhausText>
         <BauhausText style={styles.heroHint}>Share this code so students can claim their roll number.</BauhausText>
+        <BauhausButton label="Share code" color={theme.white} onPress={shareCode} style={styles.shareBtn} />
       </BauhausCard>
 
       {hasActive ? (
@@ -150,7 +183,10 @@ export default function ClassDetail() {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: theme.bg },
   container: { padding: 24, paddingBottom: 48 },
+  loadingBox: { flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
+  loadErr: { color: theme.red, textAlign: 'center', fontSize: 15 },
   card: { padding: 24, alignItems: 'center' },
+  shareBtn: { marginTop: 18, alignSelf: 'stretch' },
   name: { fontSize: 22, color: theme.white },
   code: { fontSize: 30, letterSpacing: 2, marginVertical: 10, color: theme.white },
   muted: { color: theme.muted },

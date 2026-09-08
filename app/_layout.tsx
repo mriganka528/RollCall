@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, StatusBar, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
@@ -42,7 +42,10 @@ const tokenCache =
 
 function RootNavigator() {
   const { user, loading, isSignedIn, needsRole, connError, refresh, signOut } = useAuth();
-  const segments = useSegments();
+  // expo-router types useSegments() as a length-1 tuple in some route shapes, so
+  // indexing segments[1] trips TS2493. We legitimately read the 2nd segment (the
+  // role-picker check below), so widen to string[] — a runtime no-op.
+  const segments = useSegments() as string[];
   const router = useRouter();
 
   useEffect(() => {
@@ -142,12 +145,21 @@ export default function RootLayout() {
     );
   }
 
-  // Fail loudly-but-friendly if the Clerk key is missing, instead of a cryptic
-  // crash deep inside ClerkProvider.
+  // Fail loudly-but-friendly if the Clerk key is missing, instead of hanging on a
+  // blank spinner forever. This is what happens when a build ships WITHOUT the
+  // EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY env var — most commonly an EAS build where
+  // the value wasn't provided (it lives in .env, which is gitignored, so cloud
+  // builds must get it from eas.json's "env" block). Showing the reason on screen
+  // turns a mystery "stuck loading" APK into a one-line diagnosis.
   if (!CLERK_PUBLISHABLE_KEY) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={theme.ink} size="large" />
+        <Text style={styles.errTitle}>Configuration error</Text>
+        <Text style={styles.errBody}>
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is missing from this build. If this is an
+          APK from EAS, add it to the build profile’s "env" block in eas.json, then
+          rebuild. Locally, set it in the root .env and restart with `expo start -c`.
+        </Text>
       </View>
     );
   }
@@ -169,5 +181,7 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg, padding: 24 },
+  errTitle: { fontSize: 20, fontWeight: '700', color: theme.ink, marginBottom: 12, textAlign: 'center' },
+  errBody: { fontSize: 14, color: theme.ink, textAlign: 'center', lineHeight: 21 },
 });

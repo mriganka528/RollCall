@@ -6,8 +6,12 @@ import { BauhausButton, BauhausHeader, BauhausInput, BauhausText, fonts, theme }
 import { useToast } from '../../components/Toast';
 import { haptics } from '../../lib/haptics';
 
+// Pull a human-readable message out of a Clerk error. The signals/future API
+// returns a ClerkError object with `longMessage`/`message`/`code`; older thrown
+// errors nested them under `errors[]`. Handle both.
 function clerkError(e: any): string {
   return (
+    e?.longMessage ??
     e?.errors?.[0]?.longMessage ??
     e?.errors?.[0]?.message ??
     e?.message ??
@@ -18,7 +22,9 @@ function clerkError(e: any): string {
 // Clerk password reset. Phase 1 emails a code; phase 2 verifies it together with
 // the new password and, on success, signs the user straight in.
 export default function ForgotPassword() {
-  const { signIn, setActive, isLoaded } = useSignIn();
+  // Signals/future API (see login.tsx): no `isLoaded`, no `setActive`. Reset is a
+  // three-step flow on signIn.resetPasswordEmailCode, then finalize().
+  const { signIn } = useSignIn();
   const router = useRouter();
   const toast = useToast();
 
@@ -29,17 +35,25 @@ export default function ForgotPassword() {
   const [busy, setBusy] = useState(false);
 
   async function sendCode() {
-    if (!isLoaded || !signIn) {
-      toast.show('Still connecting to the sign-in service — one moment, then tap again.', 'info');
-      return;
-    }
     if (!email.trim()) {
       toast.show('Enter your email.', 'error');
       return;
     }
     setBusy(true);
     try {
-      await signIn.create({ strategy: 'reset_password_email_code', identifier: email.trim() });
+      // Future API: establish the sign-in with the identifier, then send the
+      // reset-password email code. (The old single-call
+      // create({ strategy: 'reset_password_email_code' }) no longer exists.)
+      const created = await signIn.create({ identifier: email.trim() });
+      if (created.error) {
+        toast.show(clerkError(created.error), 'error');
+        return;
+      }
+      const sent = await signIn.resetPasswordEmailCode.sendCode();
+      if (sent.error) {
+        toast.show(clerkError(sent.error), 'error');
+        return;
+      }
       haptics.light();
       setPhase('reset');
       toast.show('We emailed you a 6-digit code.', 'info');
@@ -51,10 +65,6 @@ export default function ForgotPassword() {
   }
 
   async function resetPassword() {
-    if (!isLoaded || !signIn || !setActive) {
-      toast.show('Still connecting to the sign-in service — one moment, then tap again.', 'info');
-      return;
-    }
     if (!code.trim()) {
       toast.show('Enter the code from your email.', 'error');
       return;
@@ -65,19 +75,27 @@ export default function ForgotPassword() {
     }
     setBusy(true);
     try {
-      const res = await signIn.attemptFirstFactor({
-        strategy: 'reset_password_email_code',
-        code: code.trim(),
-        password,
-      });
-      if (res.status === 'complete') {
-        await setActive({ session: res.createdSessionId });
-        haptics.success();
-        toast.show('Password reset. You’re signed in!', 'success');
-        // RootNavigator takes over from here.
-      } else {
-        toast.show('Reset incomplete — additional verification is required.', 'error');
+      // Verify the emailed code, then submit the new password, then finalize()
+      // to activate the session (replaces setActive). Each step resolves with
+      // `{ error }` rather than throwing.
+      const verified = await signIn.resetPasswordEmailCode.verifyCode({ code: code.trim() });
+      if (verified.error) {
+        toast.show(clerkError(verified.error), 'error');
+        return;
       }
+      const submitted = await signIn.resetPasswordEmailCode.submitPassword({ password });
+      if (submitted.error) {
+        toast.show(clerkError(submitted.error), 'error');
+        return;
+      }
+      const fin = await signIn.finalize();
+      if (fin.error) {
+        toast.show(clerkError(fin.error), 'error');
+        return;
+      }
+      haptics.success();
+      toast.show('Password reset. You’re signed in!', 'success');
+      // RootNavigator takes over from here.
     } catch (e) {
       toast.show(clerkError(e), 'error');
     } finally {

@@ -4,6 +4,12 @@ import Constants from 'expo-constants';
 // a different port; otherwise it matches the server's default (see server/.env).
 const API_PORT = process.env.EXPO_PUBLIC_API_PORT ?? '4000';
 
+// The deployed backend (Vercel), read from the env file
+// (EXPO_PUBLIC_DEPLOYED_API_URL). Used as the default when no explicit
+// EXPO_PUBLIC_API_URL is set and there is no Metro dev host to auto-detect from
+// (e.g. a production build), so the app talks to the live server by default.
+const DEPLOYED_API_URL = process.env.EXPO_PUBLIC_DEPLOYED_API_URL?.trim().replace(/\/+$/, '') ?? '';
+
 // Resolve the backend base URL, in priority order:
 //   1) EXPO_PUBLIC_API_URL — an explicit override always wins (use this for a
 //      deployed/remote server, e.g. https://api.example.com).
@@ -14,7 +20,8 @@ const API_PORT = process.env.EXPO_PUBLIC_API_PORT ?? '4000';
 //      machine as Metro. This is the usual cause of "HTTP 0 / request timed out":
 //      the old default of localhost only works for a web build or an emulator on
 //      the same host, never for a real phone.
-//   3) localhost — last resort (web / same-machine only).
+//   3) The deployed backend (DEPLOYED_API_URL) — the default when there is no
+//      Metro host to auto-detect from, e.g. a production build.
 function resolveBaseUrl(): string {
   const explicit = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (explicit) return explicit.replace(/\/+$/, ''); // strip trailing slash(es)
@@ -32,7 +39,7 @@ function resolveBaseUrl(): string {
     return `http://${host}:${API_PORT}`;
   }
 
-  return `http://localhost:${API_PORT}`;
+  return DEPLOYED_API_URL || `http://localhost:${API_PORT}`;
 }
 
 const BASE_URL = resolveBaseUrl();
@@ -81,7 +88,13 @@ export class ApiError extends Error {
   }
 }
 
-const TIMEOUT_MS = 10_000; // §13: every call times out after 10s.
+// Per-request timeout. Raised from 10s → 20s because the backend runs on Vercel
+// serverless: the first request after the function goes idle pays a cold-start
+// penalty, which on a slow mobile connection can easily push a simple GET past
+// 10s and surface the misleading "Request timed out" error. A timed-out attempt
+// is retried once (see request()), and that retry usually hits a now-warm
+// function, so 20s is a generous ceiling rather than the common case.
+const TIMEOUT_MS = 20_000;
 
 // One attempt. Throws ApiError on an HTTP error (which must NOT be retried) and
 // re-throws the raw fetch/abort error on a network failure (which may be retried).
