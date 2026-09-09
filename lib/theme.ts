@@ -13,11 +13,11 @@ export const RADIUS = { sm: 10, md: 16, lg: 22, xl: 28, pill: 999 } as const;
 // than flat outlines. Cross-platform: iOS uses the shadow* keys, Android uses
 // elevation. Kept subtle on purpose — depth, not drama.
 export const SHADOW = {
-  shadowColor: '#1A1A2E',
-  shadowOffset: { width: 0, height: 6 },
-  shadowOpacity: 0.1,
-  shadowRadius: 14,
-  elevation: 4,
+  shadowColor: '#3B3560',
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.08,
+  shadowRadius: 16,
+  elevation: 3,
 } as const;
 
 // ROLLCALL palette — a warmer, multi-colour scheme built around the brand
@@ -28,37 +28,38 @@ export const SHADOW = {
 // (accent/success/danger/info) are kept so the many existing `COLORS.accent` /
 // `theme.present` call sites keep resolving without a rewrite.
 export const COLORS = {
-  // ---- brand triad (matches the app icon) ----
-  ink: '#1A1A2E', // text, primary borders (a soft near-black, slight blue cast)
-  blue: '#1D3F72', // primary — buttons, active states, headers
-  red: '#E23E57', // danger / absent / destructive (warm, slightly brighter red)
-  yellow: '#F4C430', // accent — live / pending / highlight
-  bg: '#F6F7FB', // page background — a soft cool white
+  // ---- brand triad (lightened into a soft pastel scheme) ----
+  ink: '#2C2A3D', // text & strong marks — a soft near-black with a gentle violet cast (still high-contrast on light surfaces)
+  blue: '#4B63D4', // primary — a friendlier, lighter indigo (was dark navy); still holds white label text
+  red: '#E24A6A', // danger / absent — a soft rose-red
+  yellow: '#F5C64B', // accent — live / pending / highlight
+  bg: '#F4F3FB', // page background — a soft lavender paper: airy and light
   white: '#FFFFFF', // card surfaces
-  muted: '#6B6B78', // secondary text
+  muted: '#7A7A8E', // secondary text
+  line: '#E7E4F2', // hairline borders — a soft lavender-grey (replaces heavy dark-ink borders)
 
-  // ---- extended multi-colour palette (category variety, tiles, shapes) ----
-  green: '#2E9E5B', // presence / success — a real, intuitive green
-  teal: '#149A8C',
-  violet: '#6C4AB6',
-  orange: '#F08A24',
-  pink: '#E85D9A',
-  sky: '#3E92CC',
+  // ---- extended multi-colour palette (category variety, tiles, doodles) ----
+  green: '#2FA268', // presence / success — a real, intuitive green
+  teal: '#17A29A',
+  violet: '#7A5AD6',
+  orange: '#F2903A',
+  pink: '#EA6AA6',
+  sky: '#4FA3DA',
 
   // ---- soft pastel tints (card backgrounds, subtle fills) ----
-  blueTint: '#E8EEF9',
-  greenTint: '#E3F4EA',
-  yellowTint: '#FCF3D6',
-  redTint: '#FCE6EA',
-  violetTint: '#EDE8F7',
+  blueTint: '#EAEDFB',
+  greenTint: '#E5F5ED',
+  yellowTint: '#FCF4DA',
+  redTint: '#FCE7EC',
+  violetTint: '#EFEAFB',
   orangeTint: '#FCEEDD',
-  tealTint: '#DFF3F0',
+  tealTint: '#E1F4F1',
 
   // ---- back-compat aliases (map onto the palette above) ----
-  accent: '#F4C430', // Bauhaus yellow
-  success: '#2E9E5B', // success now reads as a friendly green (was blue)
-  danger: '#E23E57',
-  info: '#1D3F72',
+  accent: '#F5C64B', // pastel yellow
+  success: '#2FA268', // success reads as a friendly green
+  danger: '#E24A6A',
+  info: '#4B63D4',
 } as const;
 
 // Rotating accent colours for category variety — e.g. giving each class card a
