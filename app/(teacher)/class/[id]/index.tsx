@@ -1,11 +1,13 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { BauhausCard, BauhausButton, BauhausHeader, BauhausText, fonts, theme } from '../../../../components/BauhausCard';
 import { useToast } from '../../../../components/Toast';
 import { useConfirm } from '../../../../components/ConfirmDialog';
 import { api, ApiError } from '../../../../lib/api';
 import { haptics } from '../../../../lib/haptics';
+import { copyToClipboard } from '../../../../lib/clipboard';
 import { ClassDetail as ClassDetailType, SessionInfo } from '../../../../lib/types';
 
 export default function ClassDetail() {
@@ -57,6 +59,20 @@ export default function ClassDetail() {
   // Read-only details for a finished (or ongoing) session (§13).
   function viewDetails(sessionId: string) {
     router.push(`/(teacher)/class/${id}/session-details?sessionId=${sessionId}`);
+  }
+
+  // Tap-to-copy the join code (§H5). Copies just the code to the clipboard for a
+  // quick paste, with a haptic + toast so the tap feels acknowledged. The Share
+  // button below is still there for sending the full invite message.
+  async function copyCode() {
+    if (!data) return;
+    const ok = await copyToClipboard(data.joinCode);
+    if (ok) {
+      haptics.success();
+      toast.show('Class code copied', 'success');
+    } else {
+      toast.show('Couldn’t copy the code.', 'error');
+    }
   }
 
   // Share the join code to any app (WhatsApp, SMS, email, …) via the OS share
@@ -125,9 +141,18 @@ export default function ClassDetail() {
     <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
       <BauhausCard color={theme.primary} style={styles.card}>
         <BauhausHeader style={styles.name}>{data.name}</BauhausHeader>
-        <BauhausHeader style={styles.code}>{data.joinCode}</BauhausHeader>
+        <Pressable
+          onPress={copyCode}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={`Copy class code ${data.joinCode}`}
+          style={({ pressed }) => [styles.codeRow, pressed && styles.codePressed]}
+        >
+          <BauhausHeader style={styles.code}>{data.joinCode}</BauhausHeader>
+          <Ionicons name="copy-outline" size={20} color={theme.white} style={styles.copyIcon} />
+        </Pressable>
         <BauhausText style={styles.heroSub}>{data.studentCount} students</BauhausText>
-        <BauhausText style={styles.heroHint}>Share this code so students can claim their roll number.</BauhausText>
+        <BauhausText style={styles.heroHint}>Tap the code to copy it, or share it so students can claim their roll number.</BauhausText>
         <BauhausButton label="Share code" color={theme.white} onPress={shareCode} style={styles.shareBtn} />
       </BauhausCard>
 
@@ -188,7 +213,10 @@ const styles = StyleSheet.create({
   card: { padding: 24, alignItems: 'center' },
   shareBtn: { marginTop: 18, alignSelf: 'stretch' },
   name: { fontSize: 22, color: theme.white },
-  code: { fontSize: 30, letterSpacing: 2, marginVertical: 10, color: theme.white },
+  codeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginVertical: 10 },
+  codePressed: { opacity: 0.6 },
+  copyIcon: { opacity: 0.9 },
+  code: { fontSize: 30, letterSpacing: 2, color: theme.white },
   muted: { color: theme.muted },
   heroSub: { color: theme.white, opacity: 0.9 },
   heroHint: { color: theme.white, opacity: 0.9, marginTop: 8, fontSize: 13, textAlign: 'center' },

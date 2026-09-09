@@ -1,14 +1,15 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Modal, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList, Modal, ScrollView, StyleSheet, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { BauhausCard, BauhausButton, BauhausHeader, BauhausInput, BauhausText, fonts, theme } from '../../../../components/BauhausCard';
 import { useToast } from '../../../../components/Toast';
 import { useConfirm } from '../../../../components/ConfirmDialog';
 import RosterImportReview, { RosterRow } from '../../../../components/RosterImportReview';
 import { api, ApiError } from '../../../../lib/api';
 import { haptics } from '../../../../lib/haptics';
-import { ImportResponse, RosterEntry } from '../../../../lib/types';
+import { ClassSummary, ImportResponse, RosterEntry } from '../../../../lib/types';
 
 export default function Roster() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,15 +28,86 @@ export default function Roster() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Copy-roster (§H2) — when this class opens empty and the teacher has students
+  // in other classes, offer to copy one of those rosters in. `copySources` is the
+  // list of eligible classes; `offeredRef` makes the auto-prompt fire at most once
+  // per screen mount so dismissing it ("Not now") doesn't re-pop on every reload.
+  const [copyModal, setCopyModal] = useState(false);
+  const [copySources, setCopySources] = useState<ClassSummary[]>([]);
+  const [copyBusy, setCopyBusy] = useState(false);
+  const offeredRef = useRef(false);
+
   const load = useCallback(async () => {
     try {
-      setRoster(await api.get<RosterEntry[]>(`/classes/${id}/roster`));
+      const list = await api.get<RosterEntry[]>(`/classes/${id}/roster`);
+      setRoster(list);
+      // Auto-offer a roster copy the first time we find this class empty and the
+      // teacher owns other classes that already have students. Silent if there's
+      // nothing to copy from — the teacher just sees the normal empty roster.
+      if (list.length === 0 && !offeredRef.current) {
+        offeredRef.current = true;
+        try {
+          const classes = await api.get<ClassSummary[]>('/classes');
+          const sources = classes.filter((c) => c.id !== id && (c.studentCount ?? 0) > 0);
+          if (sources.length > 0) {
+            setCopySources(sources);
+            setCopyModal(true);
+          }
+        } catch {
+          // Couldn't list classes — skip the offer; manual add still works.
+        }
+      }
     } catch (e) {
       toast.show(e instanceof ApiError ? e.message : 'Could not load roster.', 'error');
     }
   }, [id, toast]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Manual entry point for the copy picker (the "Copy from another class" button
+  // shown while the roster is empty), for when the auto-prompt was dismissed.
+  // Unlike the silent auto-offer, this tells the teacher when there's nothing to
+  // copy from.
+  async function openCopyPicker() {
+    try {
+      const classes = await api.get<ClassSummary[]>('/classes');
+      const sources = classes.filter((c) => c.id !== id && (c.studentCount ?? 0) > 0);
+      if (sources.length === 0) {
+        toast.show('No other classes with students to copy from.', 'info');
+        return;
+      }
+      haptics.light();
+      setCopySources(sources);
+      setCopyModal(true);
+    } catch (e) {
+      toast.show(e instanceof ApiError ? e.message : 'Could not load your classes.', 'error');
+    }
+  }
+
+  // Copy a chosen source class's students into this one. The backend skips roll
+  // numbers already present here, so it's safe to run more than once.
+  async function copyFrom(sourceId: string, sourceName: string) {
+    setCopyBusy(true);
+    try {
+      const res = await api.post<{ added: number; skipped: number; sourceCount: number }>(
+        `/classes/${id}/roster/copy-from`,
+        { sourceClassId: sourceId }
+      );
+      setCopyModal(false);
+      if (res.added > 0) {
+        haptics.success();
+        const skip = res.skipped > 0 ? `, skipped ${res.skipped} duplicate${res.skipped === 1 ? '' : 's'}` : '';
+        toast.show(`Copied ${res.added} student${res.added === 1 ? '' : 's'} from ${sourceName}${skip}.`, 'success');
+      } else {
+        toast.show('Those students are already in this class.', 'info');
+      }
+      load();
+    } catch (e) {
+      toast.show(e instanceof ApiError ? e.message : 'Could not copy students.', 'error');
+    } finally {
+      setCopyBusy(false);
+    }
+  }
 
   const query = search.trim().toLowerCase();
   const filtered = useMemo(() => {
@@ -236,6 +308,15 @@ export default function Roster() {
             <BauhausInput placeholder="Roll No" value={rollNo} onChangeText={setRollNo} containerStyle={{ marginTop: 12 }} />
             <BauhausButton label={busy ? 'Adding…' : 'Add'} onPress={addOne} disabled={busy} style={{ marginTop: 12 }} />
             <BauhausButton label="Import from File" color={theme.info} onPress={pickAndImport} disabled={busy} style={{ marginTop: 12 }} />
+            {roster.length === 0 && (
+              <BauhausButton
+                label="Copy from another class"
+                color={theme.white}
+                onPress={openCopyPicker}
+                disabled={busy}
+                style={{ marginTop: 12 }}
+              />
+            )}
 
             <View style={styles.studentsHead}>
               <BauhausHeader style={styles.studentsTitle}>{studentsLabel}</BauhausHeader>
@@ -322,6 +403,51 @@ export default function Roster() {
           <RosterImportReview rows={reviewRows} onConfirm={confirmImport} onCancel={() => setReviewRows(null)} />
         )}
       </Modal>
+
+      {/* Copy-roster picker (§H2): pick which of your other classes to copy
+          students from. Auto-opens once when this class is empty; also reachable
+          via the "Copy from another class" button. */}
+      <Modal
+        visible={copyModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => { if (!copyBusy) setCopyModal(false); }}
+      >
+        <View style={styles.copyBackdrop}>
+          <View style={styles.copySheet}>
+            <BauhausHeader style={styles.copyTitle}>Copy students?</BauhausHeader>
+            <BauhausText style={styles.copySub}>
+              This class has no students yet. Copy the roster from one of your other classes — any roll numbers already here are skipped.
+            </BauhausText>
+            <ScrollView style={styles.copyList} contentContainerStyle={styles.copyListContent}>
+              {copySources.map((c) => (
+                <BauhausCard
+                  key={c.id}
+                  color={theme.white}
+                  onPress={copyBusy ? undefined : () => copyFrom(c.id, c.name)}
+                  disabled={copyBusy}
+                  style={styles.copyRow}
+                >
+                  <View style={{ flex: 1 }}>
+                    <BauhausText style={styles.copyRowName}>{c.name}</BauhausText>
+                    <BauhausText style={styles.copyRowMeta}>
+                      {c.studentCount} student{c.studentCount === 1 ? '' : 's'}
+                    </BauhausText>
+                  </View>
+                  <Ionicons name="copy-outline" size={20} color={theme.blue} />
+                </BauhausCard>
+              ))}
+            </ScrollView>
+            <BauhausButton
+              label={copyBusy ? 'Copying…' : 'Not now'}
+              color={theme.white}
+              onPress={() => setCopyModal(false)}
+              disabled={copyBusy}
+              style={{ marginTop: 4 }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -344,4 +470,14 @@ const styles = StyleSheet.create({
   rowMeta: { fontSize: 13, color: theme.muted, marginTop: 2 },
   delBtn: { paddingVertical: 10, paddingHorizontal: 14 },
   empty: { textAlign: 'center', color: theme.muted, marginTop: 20 },
+  // Copy-roster picker (§H2)
+  copyBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 24 },
+  copySheet: { backgroundColor: theme.bg, borderRadius: theme.radius, borderWidth: 1.25, borderColor: theme.ink, padding: 20, maxHeight: '80%', gap: 14 },
+  copyTitle: { fontSize: 20 },
+  copySub: { fontSize: 14, color: theme.muted, lineHeight: 20 },
+  copyList: { flexGrow: 0 },
+  copyListContent: { gap: 12, paddingVertical: 2 },
+  copyRow: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  copyRowName: { fontSize: 16, fontFamily: fonts.bodySemibold },
+  copyRowMeta: { fontSize: 13, color: theme.muted, marginTop: 2 },
 });

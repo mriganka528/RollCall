@@ -2,7 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BauhausCard, BauhausButton, BauhausHeader, BauhausText, Square, theme } from '../../components/BauhausCard';
+import { BauhausBackdrop, BauhausCard, BauhausButton, BauhausHeader, BauhausText, Square, theme } from '../../components/BauhausCard';
 import { SkeletonList } from '../../components/Skeleton';
 import { useToast } from '../../components/Toast';
 import { api, ApiError } from '../../lib/api';
@@ -39,59 +39,63 @@ export default function TeacherDashboard() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + SPACING.xl }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-    >
-      {firstLoad ? (
-        <SkeletonList count={3} height={84} />
-      ) : (
-        <>
-          {classes.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <Image
-                source={require('../../assets/images/rollcall-logo-full.png')}
-                style={styles.emptyLogo}
-                resizeMode="contain"
-              />
-              <BauhausText style={styles.empty}>No classes yet. Create your first one.</BauhausText>
-            </View>
-          ) : (
-            <View style={styles.list}>
-              {classes.map((c, i) => (
-                <BauhausCard
-                  key={c.id}
-                  color={theme.white}
-                  onPress={() => router.push(`/(teacher)/class/${c.id}`)}
-                  style={styles.card}
-                >
-                  <View style={styles.cardTop}>
-                    <Square size={16} color={ACCENTS[i % ACCENTS.length]} />
-                    <BauhausHeader style={styles.className}>{c.name}</BauhausHeader>
-                  </View>
-                  <BauhausText style={styles.meta}>
-                    Code {c.joinCode}
-                    {c.studentCount !== undefined ? `  ·  ${c.studentCount} students` : ''}
-                  </BauhausText>
-                </BauhausCard>
-              ))}
-            </View>
-          )}
+    <View style={styles.root}>
+      <BauhausBackdrop />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + SPACING.xl }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+      >
+        {firstLoad ? (
+          <SkeletonList count={3} height={84} />
+        ) : (
+          <>
+            {classes.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Image
+                  source={require('../../assets/images/rollcall-logo-full.png')}
+                  style={styles.emptyLogo}
+                  resizeMode="contain"
+                />
+                <BauhausText style={styles.empty}>No classes yet. Create your first one.</BauhausText>
+              </View>
+            ) : (
+              <View style={styles.list}>
+                {classes.map((c, i) => (
+                  <BauhausCard
+                    key={c.id}
+                    color={theme.white}
+                    onPress={() => router.push(`/(teacher)/class/${c.id}`)}
+                    style={styles.card}
+                  >
+                    <View style={styles.cardTop}>
+                      <Square size={16} color={ACCENTS[i % ACCENTS.length]} />
+                      <BauhausHeader style={styles.className}>{c.name}</BauhausHeader>
+                    </View>
+                    <BauhausText style={styles.meta}>
+                      Code {c.joinCode}
+                      {c.studentCount !== undefined ? `  ·  ${c.studentCount} students` : ''}
+                    </BauhausText>
+                  </BauhausCard>
+                ))}
+              </View>
+            )}
 
-          <BauhausButton
-            label="+ New Class"
-            onPress={() => router.push('/(teacher)/class/new')}
-            style={{ marginTop: SPACING.lg }}
-          />
-        </>
-      )}
-    </ScrollView>
+            <BauhausButton
+              label="+ New Class"
+              onPress={() => router.push('/(teacher)/class/new')}
+              style={{ marginTop: SPACING.lg }}
+            />
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: theme.bg },
+  root: { flex: 1 },
+  flex: { flex: 1, backgroundColor: 'transparent' },
   container: { padding: SPACING.lg },
   list: { gap: SPACING.lg },
   card: { padding: SPACING.lg },

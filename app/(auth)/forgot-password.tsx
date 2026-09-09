@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSignIn } from '@clerk/expo';
-import { BauhausButton, BauhausHeader, BauhausInput, BauhausText, fonts, theme } from '../../components/BauhausCard';
+import { BauhausBackdrop, BauhausButton, BauhausHeader, BauhausInput, BauhausText, fonts, theme } from '../../components/BauhausCard';
 import { useToast } from '../../components/Toast';
 import { haptics } from '../../lib/haptics';
 
@@ -105,6 +105,7 @@ export default function ForgotPassword() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <BauhausBackdrop />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <BauhausHeader style={styles.title}>Reset password</BauhausHeader>
 
@@ -152,7 +153,7 @@ export default function ForgotPassword() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: theme.bg },
+  container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: 'transparent' },
   title: { fontSize: 30, textAlign: 'center' },
   sub: { textAlign: 'center', marginTop: 8, marginBottom: 28, color: theme.muted },
   form: { gap: 16 },

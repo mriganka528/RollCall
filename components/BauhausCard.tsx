@@ -274,6 +274,42 @@ export function Triangle({ size = 14, color = theme.yellow, style }: { size?: nu
   );
 }
 
+// ---- Background decoration (§H4) -----------------------------------------
+// A full-bleed, non-interactive layer of faint Bauhaus shapes for otherwise
+// empty screens (auth + dashboards). It paints the app background (theme.bg)
+// and scatters a handful of large, very low-opacity primitives — circles,
+// squares, triangles and a couple of rotated bars — in the brand palette.
+//
+// Usage: make it the FIRST child of a `flex: 1` root View and give the real
+// content container a `transparent` background so the doodles show through:
+//
+//   <View style={{ flex: 1 }}>
+//     <BauhausBackdrop />
+//     <ScrollView contentContainerStyle={{ backgroundColor: 'transparent' }}>…
+//
+// `pointerEvents="none"` (set on the wrapper) means it never eats touches, and
+// it renders no text, so it's inert for screen readers.
+export function BauhausBackdrop({ style }: { style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[backdrop.fill, style]} pointerEvents="none">
+      <Circle size={150} color={theme.blue} style={[backdrop.abs, { top: -36, left: -44, opacity: 0.06 }]} />
+      <Triangle size={130} color={theme.yellow} style={[backdrop.abs, { top: 88, right: -26, opacity: 0.08 }]} />
+      <Square size={84} color={theme.red} style={[backdrop.abs, { top: '32%', left: -22, opacity: 0.06 }]} />
+      <Circle size={54} color={theme.violet} style={[backdrop.abs, { top: '45%', right: 28, opacity: 0.07 }]} />
+      <View style={[backdrop.abs, backdrop.bar, { top: '57%', left: -30 }]} />
+      <Square size={46} color={theme.teal} style={[backdrop.abs, { bottom: 150, right: -14, opacity: 0.07 }]} />
+      <Triangle size={92} color={theme.orange} style={[backdrop.abs, { bottom: 44, left: 24, opacity: 0.07 }]} />
+      <Circle size={112} color={theme.pink} style={[backdrop.abs, { bottom: -34, right: -30, opacity: 0.06 }]} />
+    </View>
+  );
+}
+
+const backdrop = StyleSheet.create({
+  fill: { ...StyleSheet.absoluteFillObject, backgroundColor: theme.bg, overflow: 'hidden' },
+  abs: { position: 'absolute' },
+  bar: { width: 170, height: 10, borderRadius: 5, backgroundColor: theme.ink, opacity: 0.06, transform: [{ rotate: '-20deg' }] },
+});
+
 const btn = StyleSheet.create({
   card: { paddingVertical: 15, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 16, fontFamily: fonts.header, letterSpacing: 0.3 },

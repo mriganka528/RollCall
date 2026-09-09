@@ -469,4 +469,69 @@ router.post(
   }
 );
 
+// POST /classes/:id/roster/copy-from { sourceClassId } (teacher) — copy every
+// student (name + roll no) from a source class the teacher owns into THIS class,
+// skipping roll numbers that already exist here (case-insensitive). Copied
+// entries start UNCLAIMED — each class tracks its own student links, so we never
+// carry over studentId. Mirrors import/confirm's dedup: build a Set of existing
+// roll numbers, then createMany the rest in a single write. BOTH classes are
+// ownership-checked, so a teacher can only ever copy between their own classes.
+router.post(
+  '/classes/:id/roster/copy-from',
+  requireAuth,
+  requireRole('teacher'),
+  async (req, res) => {
+    const target = await ownedClass(req.params.id, req.user!.id);
+    if (!target) return res.status(404).json({ error: 'Class not found' });
+
+    const sourceClassId = String(req.body?.sourceClassId ?? '').trim();
+    if (!sourceClassId) return res.status(400).json({ error: 'sourceClassId is required' });
+    if (sourceClassId === target.id) {
+      return res.status(400).json({ error: 'Source and destination are the same class' });
+    }
+
+    const source = await ownedClass(sourceClassId, req.user!.id);
+    if (!source) return res.status(404).json({ error: 'Source class not found' });
+
+    const [sourceRoster, existing] = await Promise.all([
+      prisma.rosterEntry.findMany({
+        where: { classId: source.id },
+        select: { name: true, rollNo: true },
+        orderBy: { rollNo: 'asc' },
+      }),
+      prisma.rosterEntry.findMany({
+        where: { classId: target.id },
+        select: { rollNo: true },
+      }),
+    ]);
+
+    const seen = new Set(existing.map((e) => e.rollNo.toLowerCase()));
+    const toCreate: ParsedRow[] = [];
+    for (const e of sourceRoster) {
+      const rollNo = e.rollNo.trim();
+      const rowName = e.name.trim();
+      if (!rollNo || !rowName) continue;
+      if (seen.has(rollNo.toLowerCase())) continue;
+      seen.add(rollNo.toLowerCase());
+      toCreate.push({ name: rowName, rollNo });
+    }
+
+    if (toCreate.length > 0) {
+      await prisma.rosterEntry.createMany({
+        data: toCreate.map((r) => ({ classId: target.id, name: r.name, rollNo: r.rollNo })),
+      });
+    }
+    // eslint-disable-next-line no-console
+    console.log(
+      `[classes] ROSTER copy → ${toCreate.length} entr${toCreate.length === 1 ? 'y' : 'ies'} copied from class ${source.id} into ${target.id} (${sourceRoster.length - toCreate.length} skipped)`
+    );
+    return res.json({
+      ok: true,
+      added: toCreate.length,
+      skipped: sourceRoster.length - toCreate.length,
+      sourceCount: sourceRoster.length,
+    });
+  }
+);
+
 export default router;

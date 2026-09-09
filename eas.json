@@ -9,7 +9,8 @@
       "env": {
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmlybS1waWdlb24tOTA4MC5jbGVyay5hY2NvdW50cy5kZXYk",
         "EXPO_PUBLIC_DEPLOYED_API_URL": "https://roll-call-self.vercel.app",
-        "EXPO_PUBLIC_API_URL": "https://roll-call-self.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://roll-call-self.vercel.app",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID":"1059555708792-b2ren3irt50suv7p79mbl8h6knl02tep.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -20,7 +21,9 @@
       "env": {
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmlybS1waWdlb24tOTA4MC5jbGVyay5hY2NvdW50cy5kZXYk",
         "EXPO_PUBLIC_DEPLOYED_API_URL": "https://roll-call-self.vercel.app",
-        "EXPO_PUBLIC_API_URL": "https://roll-call-self.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://roll-call-self.vercel.app",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID":"1059555708792-b2ren3irt50suv7p79mbl8h6knl02tep.apps.googleusercontent.com"
+
       }
     },
     "production": {
@@ -28,7 +31,8 @@
       "env": {
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZmlybS1waWdlb24tOTA4MC5jbGVyay5hY2NvdW50cy5kZXYk",
         "EXPO_PUBLIC_DEPLOYED_API_URL": "https://roll-call-self.vercel.app",
-        "EXPO_PUBLIC_API_URL": "https://roll-call-self.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://roll-call-self.vercel.app",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID":"1059555708792-b2ren3irt50suv7p79mbl8h6knl02tep.apps.googleusercontent.com"
       }
     }
   },

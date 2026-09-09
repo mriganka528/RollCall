@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 import { useSignIn } from '@clerk/expo';
-import { BauhausButton, BauhausInput, BauhausText, fonts, theme } from '../../components/BauhausCard';
+import { BauhausBackdrop, BauhausButton, BauhausInput, BauhausText, fonts, theme } from '../../components/BauhausCard';
 import { GoogleAuthButton } from '../../components/GoogleAuthButton';
 import { useToast } from '../../components/Toast';
 import { haptics } from '../../lib/haptics';
@@ -66,6 +66,7 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <BauhausBackdrop />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Image
           source={require('../../assets/images/rollcall-logo-full.png')}
@@ -118,7 +119,7 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: theme.bg },
+  container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: 'transparent' },
   logo: { width: 220, height: 264, alignSelf: 'center', marginBottom: 24 },
   form: { gap: 16 },
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: -2 },

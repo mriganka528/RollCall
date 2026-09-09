@@ -2,7 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BauhausCard, BauhausButton, BauhausHeader, BauhausText, Square, theme } from '../../components/BauhausCard';
+import { BauhausBackdrop, BauhausCard, BauhausButton, BauhausHeader, BauhausText, Square, theme } from '../../components/BauhausCard';
 import { SkeletonList } from '../../components/Skeleton';
 import { useToast } from '../../components/Toast';
 import { api, ApiError } from '../../lib/api';
@@ -39,50 +39,54 @@ export default function StudentDashboard() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + SPACING.xl }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
-    >
-      {firstLoad ? (
-        <SkeletonList count={3} height={84} />
-      ) : classes.length === 0 ? (
-        <View style={styles.emptyWrap}>
-          <Image
-            source={require('../../assets/images/rollcall-logo-full.png')}
-            style={styles.emptyLogo}
-            resizeMode="contain"
-          />
-          <BauhausText style={styles.empty}>You haven’t joined any classes yet.</BauhausText>
-          <BauhausButton label="+ Join a Class" color={theme.info} onPress={() => router.push('/(student)/join')} />
-        </View>
-      ) : (
-        <View style={styles.list}>
-          {classes.map((c, i) => (
-            <BauhausCard
-              key={c.id}
-              color={theme.white}
-              onPress={() => router.push(`/(student)/class/${c.id}`)}
-              style={styles.card}
-            >
-              <View style={styles.cardTop}>
-                <Square size={16} color={ACCENTS[i % ACCENTS.length]} />
-                <BauhausHeader style={styles.className}>{c.name}</BauhausHeader>
-              </View>
-              <BauhausText style={styles.meta}>
-                Code {c.joinCode}
-                {c.myRollNo ?? c.rollNo ? `  ·  Roll ${c.myRollNo ?? c.rollNo}` : ''}
-              </BauhausText>
-            </BauhausCard>
-          ))}
-        </View>
-      )}
-    </ScrollView>
+    <View style={styles.root}>
+      <BauhausBackdrop />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + SPACING.xl }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+      >
+        {firstLoad ? (
+          <SkeletonList count={3} height={84} />
+        ) : classes.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Image
+              source={require('../../assets/images/rollcall-logo-full.png')}
+              style={styles.emptyLogo}
+              resizeMode="contain"
+            />
+            <BauhausText style={styles.empty}>You haven’t joined any classes yet.</BauhausText>
+            <BauhausButton label="+ Join a Class" color={theme.info} onPress={() => router.push('/(student)/join')} />
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {classes.map((c, i) => (
+              <BauhausCard
+                key={c.id}
+                color={theme.white}
+                onPress={() => router.push(`/(student)/class/${c.id}`)}
+                style={styles.card}
+              >
+                <View style={styles.cardTop}>
+                  <Square size={16} color={ACCENTS[i % ACCENTS.length]} />
+                  <BauhausHeader style={styles.className}>{c.name}</BauhausHeader>
+                </View>
+                <BauhausText style={styles.meta}>
+                  Code {c.joinCode}
+                  {c.myRollNo ?? c.rollNo ? `  ·  Roll ${c.myRollNo ?? c.rollNo}` : ''}
+                </BauhausText>
+              </BauhausCard>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: theme.bg },
+  root: { flex: 1 },
+  flex: { flex: 1, backgroundColor: 'transparent' },
   container: { padding: SPACING.lg },
   list: { gap: SPACING.lg },
   card: { padding: SPACING.lg },
