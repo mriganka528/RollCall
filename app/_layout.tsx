@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
@@ -13,6 +13,7 @@ import {
   Poppins_600SemiBold,
 } from '@expo-google-fonts/poppins';
 import { AuthProvider, useAuth } from '../lib/auth-context';
+import { warmUp } from '../lib/api';
 import { theme } from '../components/BauhausCard';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ConnectionErrorScreen } from '../components/ConnectionErrorScreen';
@@ -131,6 +132,19 @@ export default function RootLayout() {
       );
     }
   }, [archivoError, poppinsError]);
+
+  // Proactively warm the backend (Vercel serverless + Neon scale-to-zero) so the
+  // first real request doesn't eat a cold-start timeout. Fire once as the app
+  // boots, then again every time it returns to the foreground — the exact moment
+  // a function/database that suspended while the app was idle would be cold and
+  // the next tap ("open a class") would otherwise time out. Fire-and-forget.
+  useEffect(() => {
+    warmUp();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') warmUp();
+    });
+    return () => sub.remove();
+  }, []);
 
   const fontsSettled = (archivoLoaded || !!archivoError) && (poppinsLoaded || !!poppinsError);
   const ready = fontsSettled || timedOut;

@@ -6,12 +6,13 @@
     "orientation": "portrait",
     "icon": "./assets/images/rollcall-icon-v2.png",
     "scheme": "rollcall",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "userInterfaceStyle": "light",
       "adaptiveIcon": {
         "backgroundColor": "#FAFAFA",
         "foregroundImage": "./assets/images/rollcall-adaptive-foreground-v2.png",
