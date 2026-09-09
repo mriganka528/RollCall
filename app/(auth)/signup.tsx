@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 import { useSignUp } from '@clerk/expo';
@@ -33,6 +33,9 @@ export default function Signup() {
   const [confirm, setConfirm] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  // Guards the auto-submit so a burst of onChangeText events (or a paste)
+  // can't fire verification twice.
+  const submittingRef = useRef(false);
 
   async function onSubmit() {
     if (!email.trim()) {
@@ -71,14 +74,20 @@ export default function Signup() {
     }
   }
 
-  async function onVerify() {
-    if (!code.trim()) {
-      toast.show('Enter the code from your email.', 'error');
+  // Verifies the emailed code. Called automatically the moment the sixth digit
+  // is entered (see the code input's onChangeText), or manually via the button.
+  // Accepts the code directly to avoid a stale-state read on the auto-fire.
+  async function onVerify(codeArg?: string) {
+    const c = (codeArg ?? code).replace(/\D/g, '');
+    if (c.length !== 6) {
+      toast.show('Enter the 6-digit code from your email.', 'error');
       return;
     }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setBusy(true);
     try {
-      const verified = await signUp.verifications.verifyEmailCode({ code: code.trim() });
+      const verified = await signUp.verifications.verifyEmailCode({ code: c });
       if (verified.error) {
         toast.show(clerkError(verified.error), 'error');
         return;
@@ -96,6 +105,7 @@ export default function Signup() {
       toast.show(clerkError(e), 'error');
     } finally {
       setBusy(false);
+      submittingRef.current = false;
     }
   }
 
@@ -172,17 +182,21 @@ export default function Signup() {
         ) : (
           <View style={styles.form}>
             <BauhausHeader style={styles.title}>Verify your email</BauhausHeader>
-            <BauhausText style={styles.sub}>Enter the 6-digit code we sent to {email.trim()}.</BauhausText>
+            <BauhausText style={styles.sub}>Enter the 6-digit code we sent to {email.trim()}. It verifies automatically.</BauhausText>
             <BauhausInput
               placeholder="6-digit code"
               keyboardType="number-pad"
               value={code}
-              onChangeText={setCode}
+              onChangeText={(t) => {
+                const digits = t.replace(/\D/g, '').slice(0, 6);
+                setCode(digits);
+                if (digits.length === 6) onVerify(digits);
+              }}
               maxLength={6}
             />
             <BauhausButton
               label={busy ? 'Verifying…' : 'Verify'}
-              onPress={onVerify}
+              onPress={() => onVerify()}
               disabled={busy}
             />
             <BauhausButton label="Resend code" color={theme.white} onPress={onResend} disabled={busy} />
